@@ -1,6 +1,0 @@
-{
-    "python.analysis.extraPaths": [
-        "./weatherApi/api-request",
-        "./weatherApi/airflow/api-request"
-    ]
-}
