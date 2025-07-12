@@ -1,0 +1,168 @@
+x-superset-user: &superset-user root
+x-superset-volumes: &superset-volumes
+  # /app/pythonpath_docker will be appended to the PYTHONPATH in the final container
+  - ./docker:/app/docker
+  #- ./superset:/app/superset
+  #- ./docker/pythonpath_docker:/app/pythonpath/superset_config.py
+  - ./docker/pythonpath_docker:/app/pythonpath_docker
+
+services:
+  db:
+    container_name: postgress_container
+    image: postgres:16.9-bullseye
+    ports:
+      - "5000:5432"
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: db_user
+      POSTGRES_PASSWORD: db_password
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+      - ./postgres_sample/airflow_init.sql:/docker-entrypoint-initdb.d/airflow_init.sql:ro
+      - ./postgres_sample/superset_init.sql:/docker-entrypoint-initdb.d/superset_init.sql:ro
+    networks:
+      - my-network
+
+  af:
+    container_name: airflow_container
+    image: apache/airflow:3.0.0
+    ports:
+      - 8000:8080
+    environment: 
+      AIRFLOW_DATABASE_SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@db:5432/airflow_db
+      AIRFLOW_CONN_DOCKER_DEFAULT: docker://unix://var/run/docker.sock
+      PYTHONPATH: "/opt/airflow/api-request:${PYTHONPATH}"
+      AIRFLOW__DOCKER__REGISTRY_CONFIG: '${AIRFLOW__DOCKER__REGISTRY_CONFIG}'
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://db_user:db_password@db:5432/db
+    group_add: 
+      - '1000'  # group ID for the 'airflow' group
+    depends_on:
+      - db
+    networks:
+      - my-network
+    command:
+      bash -c "airflow db migrate && airflow standalone"
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags
+      - ./airflow/api-request:/opt/airflow/api-request
+      - ~/.docker/config.json:/home/airflow/.docker/config.json
+      - /var/run/docker.sock:/var/run/docker.sock
+
+# -----------------------------------------------------------
+# dbt service for running dbt-postgres
+# - Waits for Postgres and Airflow to be up before running dbt
+# - Uses wait-for.sh script for service readiness checks
+# - Mounts dbt project and profiles
+
+  dbt:
+    container_name: dbt_container
+    image: ghcr.io/dbt-labs/dbt-postgres:1.9.latest
+    volumes:
+      - ./dbt/my_project:/usr/app
+      - ./wait-for.sh:/opt/wait-for.sh
+      - ./dbt/profiles.yml:/root/.dbt/profiles.yml:ro
+    working_dir: /usr/app
+    environment:
+      DBT_PROFILES_DIR: "/root/.dbt"
+    entrypoint: /bin/bash
+    command: > 
+      -c "/opt/wait-for.sh db:5432 --timeout=60 -- echo 'Postgres is up' &&
+        /opt/wait-for.sh af:8080 --timeout=60 -- echo 'Airflow is up' &&
+        dbt run &&
+        tail -f /dev/null"
+    networks:
+      - my-network
+# ----------------------------------------------------------- 
+  superset:
+    env_file:
+      - path: docker/.env # default
+        required: true
+    image: apache/superset:3.0.0-py310
+    container_name: superset_app
+    command:
+    - /bin/sh
+    - -c
+    - |
+      superset db upgrade &&
+      superset fab create-admin \
+        --username admin \
+        --firstname Admin \
+        --lastname User \
+        --email admin@superset.com \
+        --password admin &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088
+    restart: unless-stopped
+    ports:
+      - 8088:8088
+    user: *superset-user
+    depends_on:
+      superset-init:
+        condition: service_completed_successfully
+    volumes: *superset-volumes
+    environment:
+      #SUPERSET_HOME: /app/superset_home/postgres
+      SUPERSET_LOAD_EXAMPLE: "no"
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-INFO}"
+      DATABASE_DB: "superset_db"
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://db_user:db_password@db:5432/db
+    networks:
+      - my-network
+
+
+  superset-init:
+    image: apache/superset:3.0.0-py310
+    container_name: superset_init
+    command:
+    - /bin/sh
+    - -c
+    - |
+      superset db upgrade &&
+      superset fab create-admin \
+        --username admin \
+        --firstname Admin \
+        --lastname User \
+        --email admin@superset.com \
+        --password admin &&
+      superset init &&
+      superset run -h 0.0.0.0 -p 8088
+    env_file:
+      - path: docker/.env # default
+        required: true
+    depends_on:
+      db:
+        condition: service_started
+      redis:
+        condition: service_started
+    user: *superset-user
+    volumes: *superset-volumes
+    environment:
+      #SUPERSET_HOME: /app/superset_home/postgres
+      SUPERSET_LOAD_EXAMPLE: "no"
+      SUPERSET_LOG_LEVEL: "${SUPERSET_LOG_LEVEL:-INFO}"
+      DATABASE_DB: "superset_db"
+      SUPERSET__SQLALCHEMY_DATABASE_URI: postgresql+psycopg2://db_user:db_password@db:5432/db
+    healthcheck:
+      disable: true
+    networks:
+      - my-network
+
+  redis:
+    image: redis:7
+    container_name: superset_cache
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis:/data
+    networks:
+      - my-network
+
+
+networks:
+  my-network:
+    driver: bridge
+
+volumes:
+  redis:
+    external: false
