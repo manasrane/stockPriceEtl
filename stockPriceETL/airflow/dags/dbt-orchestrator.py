@@ -5,25 +5,35 @@ from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.providers.standard.operators.python import PythonOperator
 from docker.types import Mount
 sys.path.append("/opt/airflow/api-request")
-from insertRecords import main 
+from insertRecords import main
 default_args = { 
     'description':'a DAG to orchestrate data',
-    'start_date': datetime(2025,4,30),
+    'start_date': datetime(2025,7,12),
     'catchup':False,
+    'tableInfo':{
+        'schema': 'dev',
+        'tableName': 'intraday',
+        "symbol": "IBM",
+        "interval": "5min"}
     }
+def run_main():
+    main(default_args)
+
 dag = DAG(
-    dag_id ='weather-dbt-orchestrator',
+    dag_id ='stock-dbt-orchestrator',
     default_args = default_args,
     schedule=timedelta(minutes=5),  # ✅ correct new syntax
-    tags=['dbt', 'weather'],
+    tags=['dbt', 'stock'],
 )
 
 with dag:
     task1 = PythonOperator(
         task_id ='ingest_data_task',
-        python_callable = main
+        python_callable = run_main
     )
-
+    task1.doc_md = "This task ingests data from the API and inserts it into the database."
+    #commented out the task2 as it is not needed for this DAG
+    """
     task2 = DockerOperator(
     task_id='transform_data_task',
     image='dbt-local',
@@ -47,4 +57,4 @@ with dag:
     docker_conn_id=None,
     force_pull=False,
     dag=dag
-)
+)"""

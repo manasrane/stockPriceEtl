@@ -8,7 +8,7 @@ x-superset-volumes: &superset-volumes
 
 services:
   db:
-    container_name: postgress_container
+    container_name: postgress_container_stock
     image: postgres:16.9-bullseye
     ports:
       - "5000:5432"
@@ -24,7 +24,7 @@ services:
       - my-network
 
   af:
-    container_name: airflow_container
+    container_name: airflow_container_stock
     image: apache/airflow:3.0.0
     ports:
       - 8000:8080
@@ -47,38 +47,30 @@ services:
       - ./airflow/api-request:/opt/airflow/api-request
       - ~/.docker/config.json:/home/airflow/.docker/config.json
       - /var/run/docker.sock:/var/run/docker.sock
-
+  
 # -----------------------------------------------------------
 # dbt service for running dbt-postgres
 # - Waits for Postgres and Airflow to be up before running dbt
 # - Uses wait-for.sh script for service readiness checks
 # - Mounts dbt project and profiles
-
   dbt:
-    container_name: dbt_container
+    container_name: dbt_container_stock
     image: ghcr.io/dbt-labs/dbt-postgres:1.9.latest
     volumes:
-      - ./dbt/my_project:/usr/app
-      - ./wait-for.sh:/opt/wait-for.sh
-      - ./dbt/profiles.yml:/root/.dbt/profiles.yml:ro
-    working_dir: /usr/app
-    environment:
-      DBT_PROFILES_DIR: "/root/.dbt"
-    entrypoint: /bin/bash
-    command: > 
-      -c "/opt/wait-for.sh db:5432 --timeout=60 -- echo 'Postgres is up' &&
-        /opt/wait-for.sh af:8080 --timeout=60 -- echo 'Airflow is up' &&
-        dbt run &&
-        tail -f /dev/null"
+      - ./dbt:/usr/app/dbt
+      - ./dbt/profiles.yml:/root/.dbt/profiles.yml
     networks:
       - my-network
+    depends_on:
+      - db
+      - af
 # ----------------------------------------------------------- 
   superset:
     env_file:
       - path: docker/.env # default
         required: true
     image: apache/superset:3.0.0-py310
-    container_name: superset_app
+    container_name: superset_app_stock
     command:
     - /bin/sh
     - -c
@@ -112,7 +104,7 @@ services:
 
   superset-init:
     image: apache/superset:3.0.0-py310
-    container_name: superset_init
+    container_name: superset_init_stock
     command:
     - /bin/sh
     - -c
@@ -149,7 +141,7 @@ services:
 
   redis:
     image: redis:7
-    container_name: superset_cache
+    container_name: superset_cache_stock
     restart: unless-stopped
     ports:
       - "127.0.0.1:6379:6379"
