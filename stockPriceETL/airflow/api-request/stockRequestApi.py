@@ -1,7 +1,7 @@
 import requests
 import json
 import pandas as pd
-api_key = "V1RJ8K64TS1U7YBA"  # V1RJ8K64TS1U7YBA # Replace with your actual API key
+api_key = "<placholder>"  # <placholder> # Replace with your actual API key
 
 
 # Base function to hit Alpha Vantage API
