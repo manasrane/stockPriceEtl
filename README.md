@@ -33,16 +33,27 @@ bash
 Copy
 Edit
 project/
+
 ├── airflow/
+
 │   ├── dags/
+
 │   └── Dockerfile
+
 ├── postgres/
+
 │   └── init.sql
+
 ├── superset/
+
 │   └── Dockerfile
+
 ├── docker-compose.yml
+
 ├── .env
+
 └── requirements.txt
+
 🚀 Steps to Run
 Clone the repo
 
