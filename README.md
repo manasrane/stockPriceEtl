@@ -4,7 +4,7 @@ This project features interactive dashboards for visualizing stock market data u
 🗓️ Stock-Monthly Dashboard
 <img width="1847" height="942" alt="image" src="https://github.com/user-attachments/assets/a41408ef-87d7-4a08-97ec-c4caa3f4517b" />
 🌍 Global Stock Dashboard
-<img width="592" height="683" alt="image" src="https://github.com/user-attachments/assets/20ff2ad0-e630-4311-9f93-1aa101705586" /><img width="1220" height="332" alt="image" src="https://github.com/user-attachments/assets/c5683fec-a156-474e-b7db-d71e291542ea" />
+<img width="1220" height="332" alt="image" src="https://github.com/user-attachments/assets/c5683fec-a156-474e-b7db-d71e291542ea" />
 ⏱️ Intra-Day Dashboard
 <img width="1846" height="901" alt="image" src="https://github.com/user-attachments/assets/70b26322-9979-42ac-bd8e-485da158d96e" />
 🧩 Tech Stack
