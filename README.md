@@ -1,3 +1,4 @@
+[Stock Analytics Pipeline](https://github.com/manasrane/stockPriceETL)
 📈 Stock Market Dashboards
 This project features interactive dashboards for visualizing stock market data using Apache Superset, Airflow, PostgreSQL, and APIs from Alpha Vantage. It includes:
 
